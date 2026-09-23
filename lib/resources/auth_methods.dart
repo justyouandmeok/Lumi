@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:instagram_clone_flutter/fake_firebase.dart';
-import 'package:instagram_clone_flutter/fake_firebase.dart';
 import 'package:instagram_clone_flutter/models/user.dart' as model;
 import 'package:instagram_clone_flutter/resources/storage_methods.dart';
 

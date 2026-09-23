@@ -10,7 +10,8 @@ import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FakeFirestore.instance.load();
+  await FirebaseFirestore.instance.load();
+  await seedDemoIfNeeded();
   await FirebaseAuth.instance.restore();
   runApp(const MyApp());
 }
@@ -61,4 +62,47 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> seedDemoIfNeeded() async {
+  final fs = FirebaseFirestore.instance;
+  if ((fs.cols['posts'] ?? {}).isNotEmpty) return;
+  await fs.collection('users').doc('2').set({
+    'username': 'rivaan',
+    'uid': '2',
+    'email': 'rivaan@gmail.com',
+    'photoUrl': 'https://i.pravatar.cc/300?img=12',
+    'bio': 'Hey there I am Rivaan Ranawat',
+    'followers': [],
+    'following': [],
+  });
+  await fs.collection('users').doc('3').set({
+    'username': 'raphael',
+    'uid': '3',
+    'email': 'raphael@gmail.com',
+    'photoUrl': 'https://i.pravatar.cc/300?img=33',
+    'bio': 'Photography',
+    'followers': [],
+    'following': [],
+  });
+  await fs.collection('posts').doc('p1').set({
+    'description': 'This is a test from Rivaan!',
+    'uid': '2',
+    'username': 'rivaan',
+    'likes': [],
+    'postId': 'p1',
+    'datePublished': DateTime.now().subtract(const Duration(hours: 2)),
+    'postUrl': 'https://picsum.photos/id/1015/800/800',
+    'profImage': 'https://i.pravatar.cc/300?img=12',
+  });
+  await fs.collection('posts').doc('p2').set({
+    'description': 'Sunset in the city',
+    'uid': '3',
+    'username': 'raphael',
+    'likes': [],
+    'postId': 'p2',
+    'datePublished': DateTime.now().subtract(const Duration(hours: 5)),
+    'postUrl': 'https://picsum.photos/id/1016/800/800',
+    'profImage': 'https://i.pravatar.cc/300?img=33',
+  });
 }

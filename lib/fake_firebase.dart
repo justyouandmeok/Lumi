@@ -1,8 +1,6 @@
+
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
-import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -93,7 +91,7 @@ class FirebaseAuth {
     required String email,
     required String password,
   }) async {
-    final users = FakeFirestore.instance._cols['users'] ?? {};
+    final users = FirebaseFirestore.instance.cols['users'] ?? {};
     String? uid;
     users.forEach((id, user) {
       if (user['email'] == email) uid = id;
@@ -113,49 +111,70 @@ class FirebaseAuth {
 }
 
 class CollectionRef {
-  CollectionRef(this._db, this.name);
-  final FakeFirestore _db;
+  CollectionRef(this.db, this.name);
+  final FirebaseFirestore db;
   final String name;
 
-  DocumentRef doc([String? id]) =>
-      DocumentRef(_db, name, id ?? DateTime.now().millisecondsSinceEpoch.toString());
+  DocumentRef doc([String? id]) => DocumentRef(
+        db,
+        name,
+        id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      );
 
-  QueryRef where(String field, {dynamic isEqualTo, dynamic isGreaterThanOrEqualTo}) {
-    return QueryRef(_db, name, field, isEqualTo, isGreaterThanOrEqualTo);
+  CollectionRef orderBy(String field, {bool descending = false}) => this;
+
+  CollectionRef where(
+    String field, {
+    dynamic isEqualTo,
+    dynamic isGreaterThanOrEqualTo,
+  }) {
+    return QueryCollectionRef(
+      db,
+      name,
+      field,
+      isEqualTo,
+      isGreaterThanOrEqualTo,
+    );
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> snapshots() async* {
-    yield _snap();
-    yield* _db._changes.map((_) => _snap());
+    yield snap();
+    yield* db.changes.stream.map((_) => snap());
   }
 
-  Future<QuerySnapshot<Map<String, dynamic>>> get() async => _snap();
+  Future<QuerySnapshot<Map<String, dynamic>>> get() async => snap();
 
-  QuerySnapshot<Map<String, dynamic>> _snap() {
-    final col = _db._cols[name] ?? {};
+  QuerySnapshot<Map<String, dynamic>> snap() {
+    final col = db.cols[name] ?? {};
     final docs = col.entries
-        .map((e) => QueryDocumentSnapshot(e.key, Map<String, dynamic>.from(e.value)))
+        .map((e) =>
+            QueryDocumentSnapshot(e.key, Map<String, dynamic>.from(e.value)))
         .toList();
     docs.sort((a, b) {
       final da = a.data()?['datePublished'];
-      final db = b.data()?['datePublished'];
-      if (da is DateTime && db is DateTime) return db.compareTo(da);
+      final dbv = b.data()?['datePublished'];
+      if (da is DateTime && dbv is DateTime) return dbv.compareTo(da);
       return 0;
     });
     return QuerySnapshot(docs);
   }
 }
 
-class QueryRef {
-  QueryRef(this._db, this.name, this.field, this.isEqualTo, this.gte);
-  final FakeFirestore _db;
-  final String name;
+class QueryCollectionRef extends CollectionRef {
+  QueryCollectionRef(
+    super.db,
+    super.name,
+    this.field,
+    this.isEqualTo,
+    this.gte,
+  );
   final String field;
   final dynamic isEqualTo;
   final dynamic gte;
 
+  @override
   Future<QuerySnapshot<Map<String, dynamic>>> get() async {
-    final col = _db._cols[name] ?? {};
+    final col = db.cols[name] ?? {};
     final docs = <QueryDocumentSnapshot>[];
     col.forEach((id, data) {
       final v = data[field];
@@ -168,23 +187,23 @@ class QueryRef {
 }
 
 class DocumentRef {
-  DocumentRef(this._db, this.col, this.id);
-  final FakeFirestore _db;
+  DocumentRef(this.db, this.col, this.id);
+  final FirebaseFirestore db;
   final String col;
   final String id;
 
-  CollectionRef collection(String sub) => CollectionRef(_db, '$col/$id/$sub');
+  CollectionRef collection(String sub) => CollectionRef(db, '$col/$id/$sub');
 
   Future<void> set(Map<String, dynamic> data) async {
-    _db._cols.putIfAbsent(col, () => {});
-    _db._cols[col]![id] = Map<String, dynamic>.from(data);
-    await _db._save();
-    _db._changes.add(null);
+    db.cols.putIfAbsent(col, () => {});
+    db.cols[col]![id] = Map<String, dynamic>.from(data);
+    await db.save();
+    db.changes.add(null);
   }
 
   Future<void> update(Map<String, dynamic> patch) async {
-    _db._cols.putIfAbsent(col, () => {});
-    final cur = Map<String, dynamic>.from(_db._cols[col]![id] ?? {});
+    db.cols.putIfAbsent(col, () => {});
+    final cur = Map<String, dynamic>.from(db.cols[col]![id] ?? {});
     patch.forEach((k, v) {
       if (v is FieldValue) {
         final list = List.from(cur[k] ?? []);
@@ -200,13 +219,13 @@ class DocumentRef {
         cur[k] = v;
       }
     });
-    _db._cols[col]![id] = cur;
-    await _db._save();
-    _db._changes.add(null);
+    db.cols[col]![id] = cur;
+    await db.save();
+    db.changes.add(null);
   }
 
   Future<DocumentSnapshot> get() async {
-    final data = _db._cols[col]?[id];
+    final data = db.cols[col]?[id];
     return DocumentSnapshot(
       id,
       data == null ? null : Map<String, dynamic>.from(data),
@@ -214,17 +233,18 @@ class DocumentRef {
   }
 
   Future<void> delete() async {
-    _db._cols[col]?.remove(id);
-    await _db._save();
-    _db._changes.add(null);
+    db.cols[col]?.remove(id);
+    await db.save();
+    db.changes.add(null);
   }
 }
 
-class FakeFirestore {
-  FakeFirestore._();
-  static final instance = FakeFirestore._();
-  final Map<String, Map<String, Map<String, dynamic>>> _cols = {};
-  final _changes = StreamController<void>.broadcast();
+class FirebaseFirestore {
+  FirebaseFirestore._();
+  static final FirebaseFirestore instance = FirebaseFirestore._();
+
+  final Map<String, Map<String, Map<String, dynamic>>> cols = {};
+  final StreamController<void> changes = StreamController<void>.broadcast();
 
   CollectionRef collection(String name) => CollectionRef(this, name);
 
@@ -234,26 +254,27 @@ class FakeFirestore {
     if (raw == null) return;
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
     decoded.forEach((col, docs) {
-      _cols[col] = {};
+      cols[col] = {};
       (docs as Map<String, dynamic>).forEach((id, data) {
         final map = Map<String, dynamic>.from(data as Map);
         if (map['datePublished'] is String) {
           map['datePublished'] = DateTime.tryParse(map['datePublished']);
         }
-        _cols[col]![id] = map;
+        cols[col]![id] = map;
       });
     });
   }
 
-  Future<void> _save() async {
+  Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     final out = <String, dynamic>{};
-    _cols.forEach((col, docs) {
+    cols.forEach((col, docs) {
       out[col] = {};
       docs.forEach((id, data) {
         final copy = Map<String, dynamic>.from(data);
         if (copy['datePublished'] is DateTime) {
-          copy['datePublished'] = (copy['datePublished'] as DateTime).toIso8601String();
+          copy['datePublished'] =
+              (copy['datePublished'] as DateTime).toIso8601String();
         }
         out[col][id] = copy;
       });
@@ -262,51 +283,6 @@ class FakeFirestore {
   }
 }
 
-class FirebaseFirestore {
-  static FakeFirestore get instance => FakeFirestore.instance;
-}
-
-class Reference {
-  Reference(this.path);
-  final String path;
-  Reference child(String c) => Reference('$path/$c');
-  UploadTask putData(Uint8List file) => UploadTask(path, file);
-}
-
-class UploadTask {
-  UploadTask(this.path, this.bytes);
-  final String path;
-  final Uint8List bytes;
-}
-
-class TaskSnapshot {
-  TaskSnapshot(this.ref);
-  final _SnapRef ref;
-}
-
-class _SnapRef {
-  _SnapRef(this.url);
-  final String url;
-  Future<String> getDownloadURL() async => url;
-}
-
-class FirebaseStorage {
-  FirebaseStorage._();
-  static final instance = FirebaseStorage._();
-  Reference ref() => Reference('local');
-}
-
-extension UploadTaskAwait on UploadTask {
-  Future<TaskSnapshot> get completed async {
-    final dir = Directory.systemTemp.createTempSync('lumi');
-    final f = File('${dir.path}/${path.replaceAll('/', '_')}.jpg');
-    await f.writeAsBytes(bytes);
-    return TaskSnapshot(_SnapRef('file://${f.path}'));
-  }
-}
-
-Future<TaskSnapshot> waitUpload(UploadTask t) => t.completed;
-
 class Firebase {
-  static Future<void> initializeApp({dynamic options}) async {}
+  static Future<void> initializeApp({Object? options}) async {}
 }

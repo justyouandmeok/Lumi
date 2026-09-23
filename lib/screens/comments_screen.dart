@@ -1,7 +1,7 @@
 import 'package:instagram_clone_flutter/fake_firebase.dart';
 import 'package:flutter/material.dart';
 import 'package:instagram_clone_flutter/utils/media.dart';
-import 'package:instagram_clone_flutter/models/user.dart';
+import 'package:instagram_clone_flutter/models/user.dart' as model;
 import 'package:instagram_clone_flutter/providers/user_provider.dart';
 import 'package:instagram_clone_flutter/resources/firestore_methods.dart';
 import 'package:instagram_clone_flutter/utils/colors.dart';
@@ -47,7 +47,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final User user = Provider.of<UserProvider>(context).getUser;
+    final model.User user = Provider.of<UserProvider>(context).getUser;
 
     return Scaffold(
       appBar: AppBar(
