@@ -1,79 +1,44 @@
-class NexoUser {
-  const NexoUser({
-    required this.id,
-    required this.username,
-    required this.displayName,
-    required this.bio,
-    required this.city,
-    this.avatarUrl,
-    this.localAvatarPath,
-    this.topics = const [],
-    this.followerCount = 0,
-    this.followingCount = 0,
-  });
+import 'package:instagram_clone_flutter/fake_firebase.dart';
 
-  final String id;
+class User {
+  final String email;
+  final String uid;
+  final String photoUrl;
   final String username;
-  final String displayName;
   final String bio;
-  final String city;
-  final String? avatarUrl;
-  final String? localAvatarPath;
-  final List<String> topics;
-  final int followerCount;
-  final int followingCount;
+  final List followers;
+  final List following;
 
-  bool get hasAvatar =>
-      (localAvatarPath != null && localAvatarPath!.isNotEmpty) ||
-      (avatarUrl != null && avatarUrl!.isNotEmpty);
+  const User(
+      {required this.username,
+      required this.uid,
+      required this.photoUrl,
+      required this.email,
+      required this.bio,
+      required this.followers,
+      required this.following});
 
-  NexoUser copyWith({
-    String? displayName,
-    String? bio,
-    String? localAvatarPath,
-    String? avatarUrl,
-    int? followerCount,
-    int? followingCount,
-  }) {
-    return NexoUser(
-      id: id,
-      username: username,
-      displayName: displayName ?? this.displayName,
-      bio: bio ?? this.bio,
-      city: city,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
-      localAvatarPath: localAvatarPath ?? this.localAvatarPath,
-      topics: topics,
-      followerCount: followerCount ?? this.followerCount,
-      followingCount: followingCount ?? this.followingCount,
+  static User fromSnap(DocumentSnapshot snap) {
+    var snapshot = snap.data() as Map<String, dynamic>;
+
+    return User(
+      username: snapshot["username"],
+      uid: snapshot["uid"],
+      email: snapshot["email"],
+      photoUrl: snapshot["photoUrl"],
+      bio: snapshot["bio"],
+      followers: snapshot["followers"],
+      following: snapshot["following"],
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        'displayName': displayName,
-        'bio': bio,
-        'city': city,
-        'avatarUrl': avatarUrl,
-        'localAvatarPath': localAvatarPath,
-        'topics': topics,
-        'followerCount': followerCount,
-        'followingCount': followingCount,
+        "username": username,
+        "uid": uid,
+        "email": email,
+        "photoUrl": photoUrl,
+        "bio": bio,
+        "followers": followers,
+        "following": following,
       };
-
-  factory NexoUser.fromJson(Map<String, dynamic> json) {
-    return NexoUser(
-      id: json['id'] as String,
-      username: json['username'] as String,
-      displayName: json['displayName'] as String,
-      bio: json['bio'] as String? ?? '',
-      city: json['city'] as String? ?? '',
-      avatarUrl: json['avatarUrl'] as String?,
-      localAvatarPath: json['localAvatarPath'] as String?,
-      topics: (json['topics'] as List?)?.cast<String>() ?? const [],
-      followerCount: json['followerCount'] as int? ?? 0,
-      followingCount: json['followingCount'] as int? ?? 0,
-    );
-  }
 }
