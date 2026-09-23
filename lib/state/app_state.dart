@@ -13,6 +13,8 @@ class AppState extends ChangeNotifier {
 
   static const _postsKey = 'nexo.posts';
   static const _meKey = 'nexo.me';
+  static const _followKey = 'nexo.following';
+  static const _sessionKey = 'nexo.session';
 
   final _uuid = const Uuid();
 
@@ -22,7 +24,9 @@ class AppState extends ChangeNotifier {
     seedMe.id: seedMe,
   };
   List<NexoPost> _posts = List.of(seedPosts);
+  final Set<String> followingIds = {};
   bool loaded = false;
+  bool loggedIn = false;
 
   List<NexoPost> get feed {
     final list = List<NexoPost>.from(_posts);
@@ -53,6 +57,10 @@ class AppState extends ChangeNotifier {
       final extras = local.where((p) => !seedIds.contains(p.id)).toList();
       _posts = [...extras, ...seedPosts];
     }
+    followingIds
+      ..clear()
+      ..addAll(prefs.getStringList(_followKey) ?? const []);
+    loggedIn = prefs.getBool(_sessionKey) ?? false;
     loaded = true;
     notifyListeners();
   }
@@ -64,6 +72,8 @@ class AppState extends ChangeNotifier {
       _postsKey,
       jsonEncode(_posts.map((p) => p.toJson()).toList()),
     );
+    await prefs.setStringList(_followKey, followingIds.toList());
+    await prefs.setBool(_sessionKey, loggedIn);
   }
 
   Future<NexoPost> publish({
@@ -87,6 +97,91 @@ class AppState extends ChangeNotifier {
   Future<void> setMyAvatar(String path) async {
     me = me.copyWith(localAvatarPath: path);
     _users[me.id] = me;
+    notifyListeners();
+    await _persist();
+  }
+
+  bool isFollowing(String userId) => followingIds.contains(userId);
+
+  Future<void> toggleFollow(String userId) async {
+    if (userId == me.id) return;
+    final user = _users[userId];
+    if (user == null) return;
+    if (followingIds.contains(userId)) {
+      followingIds.remove(userId);
+      _users[userId] = user.copyWith(
+        followerCount: (user.followerCount - 1).clamp(0, 1 << 30),
+      );
+      me = me.copyWith(
+        followingCount: (me.followingCount - 1).clamp(0, 1 << 30),
+      );
+    } else {
+      followingIds.add(userId);
+      _users[userId] = user.copyWith(followerCount: user.followerCount + 1);
+      me = me.copyWith(followingCount: me.followingCount + 1);
+    }
+    _users[me.id] = me;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> addComment(String postId, String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+    _posts = _posts.map((p) {
+      if (p.id != postId) return p;
+      return p.copyWith(
+        comments: [
+          ...p.comments,
+          NexoComment(
+            id: _uuid.v4(),
+            authorId: me.id,
+            text: trimmed,
+            createdAt: DateTime.now(),
+          ),
+        ],
+      );
+    }).toList();
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> signUp({
+    required String username,
+    required String displayName,
+    required String bio,
+  }) async {
+    final clean = username.trim().toLowerCase().replaceAll(' ', '');
+    me = me.copyWith(
+      displayName: displayName.trim().isEmpty ? me.displayName : displayName.trim(),
+      bio: bio.trim(),
+    );
+    me = NexoUser(
+      id: me.id,
+      username: clean.isEmpty ? me.username : clean,
+      displayName: me.displayName,
+      bio: me.bio,
+      city: me.city,
+      avatarUrl: me.avatarUrl,
+      localAvatarPath: me.localAvatarPath,
+      topics: me.topics,
+      followerCount: me.followerCount,
+      followingCount: me.followingCount,
+    );
+    _users[me.id] = me;
+    loggedIn = true;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> logIn() async {
+    loggedIn = true;
+    notifyListeners();
+    await _persist();
+  }
+
+  Future<void> logOut() async {
+    loggedIn = false;
     notifyListeners();
     await _persist();
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'screens/login_page.dart';
 import 'screens/shell.dart';
 import 'state/app_state.dart';
 import 'state/scope.dart';
@@ -32,11 +33,16 @@ class NexoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppStateScope(
       store: store,
-      child: MaterialApp(
-        title: 'Lumi',
-        debugShowCheckedModeBanner: false,
-        theme: buildNexoTheme(),
-        home: const AppShell(),
+      child: ListenableBuilder(
+        listenable: store,
+        builder: (context, _) {
+          return MaterialApp(
+            title: 'Lumi',
+            debugShowCheckedModeBanner: false,
+            theme: buildNexoTheme(),
+            home: store.loggedIn ? const AppShell() : const LoginPage(),
+          );
+        },
       ),
     );
   }

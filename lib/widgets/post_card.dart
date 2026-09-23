@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 
 import '../models/post.dart';
 import '../models/user.dart';
+import '../screens/comments_page.dart';
+import '../screens/user_profile_page.dart';
 import '../theme.dart';
 import 'user_avatar.dart';
 
@@ -34,7 +36,16 @@ class PostCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
             child: Row(
               children: [
-                UserAvatar(user: author, size: 34),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => UserProfilePage(userId: author.id),
+                      ),
+                    );
+                  },
+                  child: UserAvatar(user: author, size: 34),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -85,6 +96,20 @@ class PostCard extends StatelessWidget {
                   ),
                   Text(
                     NumberFormat.decimalPattern('es').format(post.likes),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CommentsPage(postId: post.id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.mode_comment_outlined),
+                  ),
+                  Text(
+                    '${post.comments.length}',
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],

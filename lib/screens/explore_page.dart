@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/user.dart';
+import '../screens/user_profile_page.dart';
 import '../state/scope.dart';
 import '../theme.dart';
 import '../widgets/post_card.dart';
@@ -167,6 +168,13 @@ class _UserTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => UserProfilePage(userId: user.id),
+          ),
+        );
+      },
       leading: UserAvatar(user: user, size: 48),
       title: Text(
         user.displayName,
